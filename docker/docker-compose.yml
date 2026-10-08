@@ -7,9 +7,14 @@
 # DDS network - no need for --network host:
 #   docker compose exec control bash -lc "source /ros2_ws/install/setup.bash && rviz2 -d /ros2_ws/so101.rviz"
 #
-# ROS_DOMAIN_ID isolates groups sharing a machine.
+# ROS_DOMAIN_ID (set in .env) isolates groups sharing a machine.
 
 name: tek5
+
+# Shared ROS environment for all services.
+x-ros-env: &ros-env
+  ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-42}
+  FASTDDS_BUILTIN_TRANSPORTS: LARGE_DATA
 
 services:
   control:
@@ -19,13 +24,12 @@ services:
     image: tek5/control
     init: true
     environment:
-      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-42}
-      - FASTDDS_BUILTIN_TRANSPORTS=LARGE_DATA
-      - USE_SIM=${USE_SIM:-true}
-      - REAL_ROBOT_PORT=${REAL_ROBOT_PORT:-/dev/ttyACM0}
-      - MUJOCO_GL=osmesa
-      - DISPLAY=${DISPLAY}
-      - QT_QPA_PLATFORM=xcb        # robust X11 and XWayland
+      <<: *ros-env
+      USE_SIM: ${USE_SIM:-true}
+      REAL_ROBOT_PORT: ${REAL_ROBOT_PORT:-/dev/ttyACM0}
+      MUJOCO_GL: osmesa
+      DISPLAY: ${DISPLAY}
+      QT_QPA_PLATFORM: xcb        # robust X11 and XWayland
     device_cgroup_rules:  # Grant permissions to access usb serial devices (real arm)
       - 'c 166:* rmw'
       - 'c 188:* rmw'
@@ -48,9 +52,7 @@ services:
   viz:
     image: tek5/control
     init: true
-    environment:
-      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-42}
-      - FASTDDS_BUILTIN_TRANSPORTS=LARGE_DATA
+    environment: *ros-env
     volumes:
       - ../ros2_ws:/ros2_ws
     networks: [rosnet]
