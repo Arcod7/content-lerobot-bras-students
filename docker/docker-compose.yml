@@ -1,0 +1,65 @@
+# Launch:
+#   xhost +local:docker            # once per session (X11 access)
+#   cp .env.example .env           # once, then edit it (sim or real arm)
+#   docker compose up -d control viz
+#
+# RViz runs INSIDE the control container (X11 forwarded), so on the internal
+# DDS network - no need for --network host:
+#   docker compose exec control bash -lc "source /ros2_ws/install/setup.bash && rviz2 -d /ros2_ws/so101.rviz"
+#
+# ROS_DOMAIN_ID isolates groups sharing a machine.
+
+name: tek5
+
+services:
+  control:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.control
+    image: tek5/control
+    init: true
+    environment:
+      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-42}
+      - FASTDDS_BUILTIN_TRANSPORTS=LARGE_DATA
+      - USE_SIM=${USE_SIM:-true}
+      - REAL_ROBOT_PORT=${REAL_ROBOT_PORT:-/dev/ttyACM0}
+      - MUJOCO_GL=osmesa
+      - DISPLAY=${DISPLAY}
+      - QT_QPA_PLATFORM=xcb        # robust X11 and XWayland
+    device_cgroup_rules:  # Grant permissions to access usb serial devices (real arm)
+      - 'c 166:* rmw'
+      - 'c 188:* rmw'
+    volumes:
+      - ../ros2_ws:/ros2_ws
+      - ../sim:/opt/so101/sim
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ./control_entrypoint.sh:/opt/so101/entrypoint.sh:ro
+      - ${CALIBRATION_FILE:-/dev/null}:/calibration/arm.json:ro
+    networks: [rosnet]
+    stdin_open: true
+    tty: true
+    # Only container that builds (concurrent colcon on the same volume = conflicts).
+    # viz waits for install/ to be ready.
+    command: ["/opt/so101/entrypoint.sh"]
+
+  # robot_state_publisher: publishes /robot_description and the TFs from
+  # /joint_states (provided by your driver_node). Visualization is done
+  # with RViz from the control container.
+  viz:
+    image: tek5/control
+    init: true
+    environment:
+      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-42}
+      - FASTDDS_BUILTIN_TRANSPORTS=LARGE_DATA
+    volumes:
+      - ../ros2_ws:/ros2_ws
+    networks: [rosnet]
+    command: >
+      bash -lc "source /opt/ros/jazzy/setup.bash &&
+      until [ -f /ros2_ws/install/setup.bash ] && [ -f /ros2_ws/install/so101_description/share/so101_description/launch/viz.launch.py ]; do echo 'waiting for build (control)...'; sleep 1; done &&
+      cd /ros2_ws && source install/setup.bash &&
+      ros2 launch so101_description viz.launch.py"
+
+networks:
+  rosnet:
+    driver: bridge
