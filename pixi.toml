@@ -1,0 +1,69 @@
+[workspace]
+name = "tek5-so101"
+description = "Tek5 SO-ARM101: ROS 2 Jazzy + MuJoCo (RoboStack + Pixi)"
+channels = ["robostack-jazzy", "conda-forge"]
+# Windows: native (win-64), or WSL2 Ubuntu which uses linux-64.
+platforms = ["linux-64", "linux-aarch64", "osx-arm64", "osx-64", "win-64"]
+
+[dependencies]
+python = "3.12.*"
+# Same RoboStack rebuild cycle on every OS. 0.21+ (jazzy_31) needs Python 3.14.
+ros2-distro-mutex = ">=0.16,<0.17"
+# ROS 2 Jazzy (RoboStack)
+ros-jazzy-ros-base = "*"
+ros-jazzy-rviz2 = "*"
+ros-jazzy-robot-state-publisher = "*"
+ros-jazzy-joint-state-publisher = "*"
+ros-jazzy-cv-bridge = "*"
+ros-jazzy-tf2-ros = "*"
+ros-jazzy-tf-transformations = "*"
+ros-jazzy-image-transport = "*"
+ros-jazzy-message-filters = "*"
+ros-jazzy-rosidl-default-generators = "*"
+ros-jazzy-pinocchio = "*"
+# Workspace build (so101_interfaces is a C++/CMake package)
+colcon-common-extensions = "*"
+compilers = "*"
+cmake = ">=3.22,<4"
+ninja = "*"
+pkg-config = "*"
+# Simulation, vision, real arm
+mujoco = ">=3.2"
+opencv = ">=4.10,<5"
+numpy = "*"
+pyserial = "*"
+tqdm = "*"
+deepdiff = "*"
+draccus = "*"
+setuptools = "<80"
+
+[pypi-dependencies]
+rustypot = ">=1.13.1,<2"  # Feetech bus driver since LeRobot v0.7
+ikpy = "==4.1.*"  # 4.5 changes the URDF chain API (tip=...)
+so101-core = { path = "core/lerobot_min", editable = true }
+so101-sim = { path = "sim", editable = true }
+
+[target.unix.activation]
+scripts = ["scripts/env.sh"]
+
+[target.win-64.activation]
+scripts = ["scripts/env.bat"]
+
+# Fast DDS discovery is unreliable on macOS and Windows: use Cyclone DDS there.
+[target.osx.dependencies]
+ros-jazzy-rmw-cyclonedds-cpp = "*"
+
+[target.osx.activation.env]
+RMW_IMPLEMENTATION = "rmw_cyclonedds_cpp"
+
+[target.win-64.dependencies]
+ros-jazzy-rmw-cyclonedds-cpp = "*"
+
+[target.win-64.activation.env]
+RMW_IMPLEMENTATION = "rmw_cyclonedds_cpp"
+
+[tasks]
+build = "python scripts/build.py"
+launch = { cmd = "python scripts/stack.py", depends-on = ["build"] }
+rviz2 = { cmd = "python ../scripts/overlay.py rviz2 -d so101.rviz", cwd = "ros2_ws" }
+clean = { cmd = "rm -rf build install log", cwd = "ros2_ws" }  # pixi's own rm, works on Windows too

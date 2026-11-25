@@ -1,4 +1,4 @@
-# SO101Sim — MuJoCo simulation backend of the SO-ARM101.
+# SO101Sim: MuJoCo simulation backend of the SO-ARM101.
 #
 # Exposes STRICTLY the same interface as lerobot.robots.so_follower.SO101Follower:
 #   connect() / disconnect() / get_observation() / send_action() / is_connected
@@ -9,13 +9,49 @@
 # Units: radians for the 5 arm joints, 0-100 for the gripper
 # (same as SO101FollowerConfig(use_radians=True) on the real arm).
 
+import logging
+import os
+import subprocess
+import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import mujoco
 import numpy as np
 
-ASSETS_DIR = Path("/opt/so101/sim/so101_sim/assets/so101")
+log = logging.getLogger(__name__)
+
+SOFTWARE_GL = ("llvmpipe", "softpipe", "swrast", "Software Rasterizer", "GDI Generic")
+# One red sphere in front of the default camera: the centre pixel must be red.
+_GPU_PROBE = """
+import mujoco
+m = mujoco.MjModel.from_xml_string('<mujoco><worldbody><geom size=".5" rgba="1 0 0 1"/></worldbody></mujoco>')
+m.vis.quality.offsamples = 0
+d = mujoco.MjData(m); mujoco.mj_forward(m, d)
+r = mujoco.Renderer(m, 32, 32); r.update_scene(d)
+p = r.render()[16, 16]
+assert p[0] > 100 and p[1] < 60, p
+"""
+
+
+def _pick_wsl_gpu() -> None:
+    """WSL2: Mesa renders on the CPU (llvmpipe) unless told to use the GPU through D3D12
+    (4x faster). Tried in a child process first: a bad GPU driver can crash or draw garbage.
+    Only for the sim: RViz draws nothing with D3D12. GALLIUM_DRIVER=llvmpipe forces the CPU."""
+    if not os.path.exists("/dev/dxg") or "GALLIUM_DRIVER" in os.environ:
+        return
+    try:
+        ok = subprocess.run([sys.executable, "-c", _GPU_PROBE], env={**os.environ, "GALLIUM_DRIVER": "d3d12"},
+                            capture_output=True, timeout=60).returncode == 0
+    except subprocess.TimeoutExpired:
+        ok = False
+    os.environ["GALLIUM_DRIVER"] = "d3d12" if ok else "llvmpipe"
+    os.environ.setdefault("EGL_LOG_LEVEL", "fatal")  # harmless "failed to get driver name" noise on WSL
+    if not ok:
+        log.warning("WSL: the GPU (D3D12) failed a test render, the camera falls back to the CPU")
+
+ASSETS_DIR = Path(__file__).resolve().parent / "assets" / "so101"
 DEFAULT_SCENE = ASSETS_DIR / "scene_tek5.xml"
 
 ARM_JOINTS = ["shoulder_pan", "shoulder_lift", "elbow_flex", "wrist_flex", "wrist_roll"]
@@ -48,6 +84,9 @@ class SO101Sim:
         self.model: mujoco.MjModel | None = None
         self.data: mujoco.MjData | None = None
         self._renderer: mujoco.Renderer | None = None
+        # OpenGL contexts belong to one thread: every GL call runs on this one,
+        # whatever thread calls render_camera() (closing from another crashes on Windows).
+        self._gl = ThreadPoolExecutor(max_workers=1)
         self._connected = False
         self._last_step_t = 0.0
 
@@ -60,6 +99,9 @@ class SO101Sim:
     def connect(self, calibrate: bool = True) -> None:  # same signature as the real arm
         self.model = mujoco.MjModel.from_xml_path(self.scene_path)
         self.data = mujoco.MjData(self.model)
+        _pick_wsl_gpu()  # before the first OpenGL context of this process
+        if os.environ.get("GALLIUM_DRIVER") == "d3d12":
+            self.model.vis.quality.offsamples = 0  # multisampling renders garbage on D3D12
 
         self._joint_qpos_adr = {
             name: self.model.joint(name).qposadr[0] for name in ALL_JOINTS
@@ -77,7 +119,7 @@ class SO101Sim:
 
     def disconnect(self) -> None:
         if self._renderer is not None:
-            self._renderer.close()
+            self._gl.submit(self._renderer.close).result()
             self._renderer = None
         self._connected = False
 
@@ -116,15 +158,29 @@ class SO101Sim:
     # ------------------------------------------------------- sim utilities
 
     def render_camera(self) -> np.ndarray:
-        """RGB image (H, W, 3) uint8 of the fixed external camera."""
+        """RGB image (H, W, 3) uint8 of the fixed external camera. Callable from any thread."""
+        return self._gl.submit(self._render).result()
+
+    def _render(self) -> np.ndarray:
         if self._renderer is None:
             self._renderer = mujoco.Renderer(
                 self.model, height=self.camera_height, width=self.camera_width
             )
+            self._warn_if_cpu_rendering()
         self._renderer.update_scene(self.data, camera=self.camera_name)
         return self._renderer.render()
 
-    def randomize_object(self, radius_range=(0.18, 0.30), angle_range_deg=(-50, 60)) -> None:
+    @staticmethod
+    def _warn_if_cpu_rendering() -> None:
+        try:
+            from OpenGL.GL import GL_RENDERER, glGetString
+            name = glGetString(GL_RENDERER).decode()
+        except Exception:  # only a diagnostic, never break the camera for it
+            return
+        if any(s in name for s in SOFTWARE_GL):
+            log.warning("Camera rendered on the CPU (%s), not the GPU: slower, still works", name)
+
+    def randomize_object(self, radius_range=(0.18, 0.30), angle_range_deg=(-60, 50)) -> None:
         """Moves pickup_object to a reachable position, with a random yaw."""
         r = self._rng.uniform(*radius_range)
         a = np.radians(self._rng.uniform(*angle_range_deg))
@@ -138,7 +194,7 @@ class SO101Sim:
             mujoco.mj_step(self.model, self.data)
 
     def get_object_position(self) -> np.ndarray:
-        """World position of the object — DEBUG/EVALUATION only.
+        """World position of the object, DEBUG/EVALUATION only.
         Forbidden in the pipeline: the position must come from perception."""
         return self.data.body("pickup_object").xpos.copy()
 

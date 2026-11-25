@@ -56,7 +56,7 @@
         </body>
 
         <!-- Drop box -->
-        <body name="drop_box" pos="0.05 -0.25 0.0">
+        <body name="drop_box" pos="0.05 0.25 0.0">
             <geom type="box" size="0.05 0.05 0.002" pos="0 0 0.002" material="box_mat" />
             <geom type="box" size="0.05 0.002 0.025" pos="0 0.05 0.025" material="box_mat" />
             <geom type="box" size="0.05 0.002 0.025" pos="0 -0.05 0.025" material="box_mat" />
@@ -66,7 +66,7 @@
 
         <!-- Fixed external camera (eye-to-hand), KNOWN pose: this is the reference
              camera->world TF. Looks at the workspace from above/the side. -->
-        <camera name="external_cam" pos="0.45 0.45 0.55" xyaxes="-0.707 0.707 0 -0.354 -0.354 0.866"
+        <camera name="external_cam" pos="0.45 0.45 0.55" xyaxes="-0.707 0.707 0 -0.462 -0.462 0.757"
             fovy="52" />
     </worldbody>
 </mujoco>

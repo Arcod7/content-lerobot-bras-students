@@ -5,17 +5,21 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "so101-core"
 version = "0.1.0"
-description = "Minimal Feetech/SO-ARM101 driver (extracted from LeRobot, Apache-2.0) — Tek5 Epitech module"
+description = "Minimal Feetech/SO-ARM101 driver (extracted from LeRobot v0.7.0, Apache-2.0), Tek5 Epitech module"
 requires-python = ">=3.10"
 dependencies = [
     "numpy",
     "draccus",
     "pyserial",
-    "feetech-servo-sdk",
+    "rustypot>=1.13.1,<2",
     "tqdm",
     "deepdiff",
     "opencv-python-headless",
 ]
+
+[project.scripts]
+lerobot-find-port = "lerobot.scripts.lerobot_find_port:main"
+lerobot-calibrate = "lerobot.scripts.lerobot_calibrate:main"
 
 [project.optional-dependencies]
 sim = ["mujoco>=3.0"]

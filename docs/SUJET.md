@@ -15,8 +15,8 @@ In a second phase, find your own application with this robot arm. It could be an
 | `so101-sim` | `sim/` | MuJoCo digital twin (`SO101Sim`), **same API** as `SO101Follower` |
 | Scene | `sim/so101_sim/assets/so101/scene_tek5.xml` | Arm + object + drop box + fixed external camera |
 | URDF | `sim/so101_sim/assets/so101/so101_new_calib.urdf` | For your IK |
-| Docker | `docker/` | Two containers, `control` and `perception`, on a shared ROS2 network |
-| ROS2 example | `ros2_ws/src/example_py_pkg` | Minimal package. Check inter-container comms with `talker` first |
+| Environment | `pixi.toml` | ROS 2 Jazzy + MuJoCo + Python libs, installed by Pixi. See the [README](../README.md) |
+| ROS2 example | `ros2_ws/src/example_py_pkg` | Minimal package. Check ROS 2 comms with `talker` first |
 
 Common API for both backends:
 
@@ -32,13 +32,15 @@ robot.disconnect()
 
 Everything else. At least three ROS2 nodes:
 
-### 1. `driver_node` (control container)
+### 1. `driver_node`
 - Instantiates `SO101Sim` **or** `SO101Follower` from a `use_sim` parameter
   (default `true`). The rest of your stack must **never** know which one runs.
-- Publishes `/joint_states` (≥20 Hz) and `/external_cam/image_raw` (~10 Hz).
+- Publishes `/joint_states` (≥20 Hz).
+- Camera: in simulation `/external_cam/image_raw` and `/external_cam/camera_info` (10 Hz)
+  are already published for you (`_start_sim_camera`). On the real arm, publish the USB camera yourself.
 - Subscribes to `/joint_command` (radians, gripper 0-100).
 
-### 2. `perception_node` (perception container)
+### 2. `perception_node`
 - Detects the object and the drop box (HSV, YOLO, ArUco… your call, justify it).
 - Publishes their 3D positions **in the robot frame** (`/object_position`,
   `/drop_box_position`, 5-10 Hz). Topic names are suggestions.
@@ -49,7 +51,7 @@ Everything else. At least three ROS2 nodes:
   the other parts, but in the end you need **your own calibration** (as shown
   at the kickoff). On the real robot, nobody hands you that matrix.
 
-### 3. `brain_node` (control container)
+### 3. `brain_node`
 - Reads the positions, computes the IK and runs approach → grasp → transport → drop.
 - IK method is up to you: `ikpy` and `pinocchio` are good starting points,
   anything else is welcome.

@@ -1,10 +1,10 @@
 """Example node: publishes a counter on /chatter at 2 Hz.
 
-Checks that your environment works:
-    colcon build && source install/setup.bash
-    ros2 run example_py_pkg talker
-    # in the other container:
-    ros2 topic echo /chatter
+Checks that your environment works (from the repo root):
+    pixi run build
+    pixi run ros2 run example_py_pkg talker
+    # in another terminal:
+    pixi run ros2 topic echo /chatter
 """
 import rclpy
 from rclpy.node import Node

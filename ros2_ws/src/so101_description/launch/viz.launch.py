@@ -3,8 +3,8 @@
     ros2 launch so101_description viz.launch.py            # waits for /joint_states
     ros2 launch so101_description viz.launch.py demo:=true # joints frozen at 0 (smoke test)
 
-Publishes /robot_description and the TFs of the arm. Visualization: run rviz2
-from the control container (X11) — see docker/docker-compose.yml.
+Publishes /robot_description and the TFs of the arm (launched by `pixi run launch`).
+Visualization: `pixi run rviz2` in another terminal.
 
 IMPORTANT: without a node publishing /joint_states (your driver_node!), the joint
 TFs do not exist → the arm appears "in pieces" in RViz. This is expected,
