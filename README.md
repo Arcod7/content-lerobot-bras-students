@@ -84,7 +84,6 @@ pixi run launch --backend real --port <port>         # or set SO101_PORT
 
 - **Linux**: `sudo usermod -aG dialout $USER`, then log out and back in. Another way to find the port, watch it appear when you plug the USB cable:
   `sudo udevadm monitor --subsystem-match=tty --property | grep --line-buffered -E "(DEVNAME=|ACTION=)"`
-- **macOS**: use the `/dev/cu.usbmodem…` port.
 - **WSL2**: attach the USB device with [usbipd-win](https://learn.microsoft.com/windows/wsl/connect-usb).
 
 ## Troubleshooting
