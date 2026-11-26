@@ -51,6 +51,15 @@ def _pick_wsl_gpu() -> None:
     if not ok:
         log.warning("WSL: the GPU (D3D12) failed a test render, the camera falls back to the CPU")
 
+
+def _skip_wayland_decorations() -> None:
+    """The GLFW window is hidden: no libdecor ("Failed to load plugin 'libdecor-gtk.so'")."""
+    if not sys.platform.startswith("linux") or os.environ.get("MUJOCO_GL", "glfw") != "glfw":
+        return
+    import glfw
+    if glfw.get_version() >= (3, 4):
+        glfw.init_hint(glfw.WAYLAND_LIBDECOR, glfw.WAYLAND_DISABLE_LIBDECOR)
+
 ASSETS_DIR = Path(__file__).resolve().parent / "assets" / "so101"
 DEFAULT_SCENE = ASSETS_DIR / "scene_tek5.xml"
 
@@ -163,6 +172,7 @@ class SO101Sim:
 
     def _render(self) -> np.ndarray:
         if self._renderer is None:
+            _skip_wayland_decorations()
             self._renderer = mujoco.Renderer(
                 self.model, height=self.camera_height, width=self.camera_width
             )

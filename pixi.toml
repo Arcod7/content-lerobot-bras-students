@@ -43,24 +43,21 @@ ikpy = "==4.1.*"  # 4.5 changes the URDF chain API (tip=...)
 so101-core = { path = "core/lerobot_min", editable = true }
 so101-sim = { path = "sim", editable = true }
 
+# Fast DDS: discovery unreliable on macOS and Windows, nodes can hang at Ctrl-C on Linux.
+[activation.env]
+RMW_IMPLEMENTATION = "rmw_cyclonedds_cpp"
+
 [target.unix.activation]
 scripts = ["scripts/env.sh"]
 
 [target.win-64.activation]
 scripts = ["scripts/env.bat"]
 
-# Fast DDS discovery is unreliable on macOS and Windows: use Cyclone DDS there.
 [target.osx.dependencies]
 ros-jazzy-rmw-cyclonedds-cpp = "*"
 
-[target.osx.activation.env]
-RMW_IMPLEMENTATION = "rmw_cyclonedds_cpp"
-
 [target.win-64.dependencies]
 ros-jazzy-rmw-cyclonedds-cpp = "*"
-
-[target.win-64.activation.env]
-RMW_IMPLEMENTATION = "rmw_cyclonedds_cpp"
 
 [tasks]
 build = "python scripts/build.py"

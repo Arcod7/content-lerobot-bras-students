@@ -28,8 +28,9 @@ def load() -> None:
 
 if __name__ == "__main__":
     load()
-    if sys.argv[1] == "rviz2" and sys.platform.startswith("linux"):
+    if sys.argv[1] == "rviz2" and sys.platform.startswith("linux") and "KDE" not in os.environ.get("XDG_CURRENT_DESKTOP", ""):
         # HiDPI screens (GNOME at 200 %): scale the whole window, not only the fonts.
+        # KDE already scales X11 apps: Qt would round its 1.67 to 2, black squares on resize.
         os.environ.setdefault("QT_AUTO_SCREEN_SCALE_FACTOR", "1")
     if sys.argv[1] == "rviz2" and os.path.exists("/dev/dxg"):
         # WSL: RViz draws broken or empty views through the GPU (D3D12), Mesa uses the CPU.
