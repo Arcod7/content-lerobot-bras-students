@@ -96,4 +96,4 @@ pixi run launch --backend real --port <port>         # or set SO101_PORT
 | Windows: odd `colcon` or `ros2` errors | Move the repo to a short path without spaces, e.g. `C:\tek5_robotics` |
 | Windows: Python edit not taken into account | `pixi run build` (no symlinks on Windows) |
 | Windows: firewall popup for `python.exe` | Cancel: ROS 2 only talks on your machine |
-| WSL2: RViz is slow | Expected: RViz renders on the CPU under WSL |
+| WSL2: RViz is slow | CPU by default. GPU: `GALLIUM_DRIVER=d3d12 pixi run rviz2` (drop it if the view is empty) |

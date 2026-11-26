@@ -33,9 +33,12 @@ if __name__ == "__main__":
         # KDE already scales X11 apps: Qt would round its 1.67 to 2, black squares on resize.
         os.environ.setdefault("QT_AUTO_SCREEN_SCALE_FACTOR", "1")
     if sys.argv[1] == "rviz2" and os.path.exists("/dev/dxg"):
-        # WSL: RViz draws broken or empty views through the GPU (D3D12), Mesa uses the CPU.
-        os.environ["GALLIUM_DRIVER"] = "llvmpipe"
-        print("[rviz] WSL: RViz renders on the CPU (the WSL GPU cannot draw its window): slower, still works", file=sys.stderr)
+        # WSL: D3D12 draws empty views on many GPUs, opt in with GALLIUM_DRIVER=d3d12.
+        if os.environ.get("GALLIUM_DRIVER") == "d3d12":
+            print("[rviz] WSL: RViz renders on the GPU (GALLIUM_DRIVER=d3d12)", file=sys.stderr)
+        else:
+            os.environ["GALLIUM_DRIVER"] = "llvmpipe"
+            print("[rviz] WSL: RViz renders on the CPU, GALLIUM_DRIVER=d3d12 for the GPU", file=sys.stderr)
     try:
         sys.exit(subprocess.call(sys.argv[1:]))
     except KeyboardInterrupt:
