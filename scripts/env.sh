@@ -36,5 +36,17 @@ for _drm in /usr/lib64/libdrm.so.2 /usr/lib/libdrm.so.2 /usr/lib/x86_64-linux-gn
 done
 unset _drm _sys _env _libs
 
+# NixOS: no /usr/share/glvnd, the EGL vendors (MuJoCo camera) are in /run/opengl-driver.
+if [ -z "${__EGL_VENDOR_LIBRARY_DIRS-}" ] && [ -d /run/opengl-driver/share/glvnd/egl_vendor.d ]; then
+  export __EGL_VENDOR_LIBRARY_DIRS=/run/opengl-driver/share/glvnd/egl_vendor.d
+fi
+# NixOS: no ld.so.cache, so glvnd cannot find libGLX_mesa (RViz) by name.
+if [ -e /run/opengl-driver/lib/libGLX_mesa.so.0 ]; then
+  case ":${LD_LIBRARY_PATH-}:" in
+    *:/run/opengl-driver/lib:*) ;;
+    *) export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}/run/opengl-driver/lib" ;;
+  esac
+fi
+
 # ROS 2 discovery limited to this machine.
 export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
