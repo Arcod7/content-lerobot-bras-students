@@ -20,7 +20,7 @@ Choose native or WSL2:
 | | Native (PowerShell or Command Prompt) | WSL2 (Ubuntu) |
 |---|---|---|
 | RViz | GPU | CPU, slower |
-| Setup | Pixi + C++ Build Tools (~2 GB) | `wsl --install -d Ubuntu` (admin), then as Linux |
+| Setup | Pixi | `wsl --install -d Ubuntu` (admin), then as Linux |
 | Python edits | Need `pixi run build` | Taken into account directly |
 | Real arm | `COM` port | USB attached with [usbipd-win](https://learn.microsoft.com/windows/wsl/connect-usb) |
 
@@ -28,7 +28,6 @@ Native, in PowerShell:
 
 ```powershell
 powershell -ExecutionPolicy ByPass -c "irm -useb https://pixi.sh/install.ps1 | iex"
-winget install Microsoft.VisualStudio.2022.BuildTools --override "--quiet --wait --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
 ```
 
 WSL2: in Ubuntu, follow [macOS, Linux](#macos-linux).
@@ -57,6 +56,7 @@ In a second terminal: `pixi run rviz2`.
 | `pixi run rviz2` | RViz with `ros2_ws/so101.rviz` |
 | `pixi shell` | Shell with ROS 2 and the workspace sourced |
 | `pixi run ros2 <args>` | Any ROS 2 command |
+| `pixi run doctor` | Check the setup, with the fix for each problem |
 | `pixi run clean` | Delete `ros2_ws/build install log` |
 | `pixi add <pkg>`, `pixi add --pypi <pkg>` | Add a dependency, commit `pixi.toml` and `pixi.lock` |
 
@@ -74,15 +74,14 @@ The arm stays "in pieces" until `driver_node` publishes `/joint_states`.
 
 ## Real arm
 
-In a `pixi shell`, use `lerobot-find-port`, `lerobot-calibrate` and `lerobot-find-cameras` as in the [LeRobot SO-101 guide](https://huggingface.co/docs/lerobot/main/en/so101) (`--robot.type=so101_follower`). Then:
+In a `pixi shell`, use `lerobot-find-port`, `lerobot-calibrate` and `lerobot-find-cameras` as in the [LeRobot SO-101 guide](https://huggingface.co/docs/lerobot/main/en/so101) (`--robot.type=so101_follower`). Then copy `.env.example` to `.env`, fill in the port, the calibration file and the camera, and:
 
 ```bash
-export SO101_CALIBRATION_FILE=<calibration file>     # PowerShell: $env:SO101_CALIBRATION_FILE = "<file>"
-export SO101_CAMERA_DEVICE=<camera>                  # index or /dev/videoN from lerobot-find-cameras, default 0
-pixi run launch --backend real --port <port>         # or set SO101_PORT
+pixi run doctor                    # checks them
+pixi run launch --backend real
 ```
 
-- **Linux**: `sudo usermod -aG dialout $USER`, then log out and back in. Another way to find the port, watch it appear when you plug the USB cable:
+- **Linux**: `sudo usermod -aG dialout $USER`, then log out and back in. Use the port's stable name from `ls -l /dev/serial/by-id/`: `/dev/ttyACM0` can change when you plug the arms in another order. Another way to find the port, watch it appear when you plug the USB cable:
   `sudo udevadm monitor --subsystem-match=tty --property | grep --line-buffered -E "(DEVNAME=|ACTION=)"`
 - **WSL2**: attach the USB device with [usbipd-win](https://learn.microsoft.com/windows/wsl/connect-usb).
 
@@ -90,9 +89,7 @@ pixi run launch --backend real --port <port>         # or set SO101_PORT
 
 | Symptom | Fix |
 |---|---|
-| `CMakeCache.txt directory … is different` | `pixi run clean`, then rebuild |
 | `ros2 topic list` does not see your nodes | Start each terminal with `pixi run` or `pixi shell` |
-| Windows: `MSVC compiler not found` | Install the Build Tools ([Prerequisites](#prerequisites)), open a new terminal |
 | Windows: odd `colcon` or `ros2` errors | Move the repo to a short path without spaces, e.g. `C:\tek5_robotics` |
 | Windows: Python edit not taken into account | `pixi run build` (no symlinks on Windows) |
 | Windows: firewall popup for `python.exe` | Cancel: ROS 2 only talks on your machine |
