@@ -1,4 +1,4 @@
-# Tek5 — SO-ARM101 pick & place
+# Tek5: SO-ARM101 pick & place
 
 Simulation, IK, perception and pick & place on the SO-ARM101 arm, with ROS 2 Jazzy and MuJoCo.
 Project spec: [`docs/SUJET.md`](docs/SUJET.md).
@@ -74,11 +74,11 @@ The arm stays "in pieces" until `driver_node` publishes `/joint_states`.
 
 ## Real arm
 
-In a `pixi shell`, use `lerobot-find-port` and `lerobot-calibrate` as in the
-[LeRobot SO-101 guide](https://huggingface.co/docs/lerobot/main/en/so101) (`--robot.type=so101_follower`). Then:
+In a `pixi shell`, use `lerobot-find-port`, `lerobot-calibrate` and `lerobot-find-cameras` as in the [LeRobot SO-101 guide](https://huggingface.co/docs/lerobot/main/en/so101) (`--robot.type=so101_follower`). Then:
 
 ```bash
 export SO101_CALIBRATION_FILE=<calibration file>     # PowerShell: $env:SO101_CALIBRATION_FILE = "<file>"
+export SO101_CAMERA_DEVICE=<camera>                  # index or /dev/videoN from lerobot-find-cameras, default 0
 pixi run launch --backend real --port <port>         # or set SO101_PORT
 ```
 
